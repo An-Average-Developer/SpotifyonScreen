@@ -64,8 +64,16 @@ public partial class OverlayWindow : Window
 
         _viewModel.PropertyChanged += ViewModel_PropertyChanged;
 
-        // ViewModel constructor already called LoadSettings() before we subscribed,
-        // so apply the initial state once the window is loaded and has a size.
+        // Apply size immediately so the window never renders at the XAML default.
+        Width = _viewModel.OverlayWidth;
+        if (_viewModel.OverlayHeight > 0)
+        {
+            SizeToContent = SizeToContent.Manual;
+            Height = _viewModel.OverlayHeight;
+        }
+
+        // After layout is complete, apply the saved position with screen-bounds clamping
+        // so the overlay can't start off-screen.
         Loaded += (_, _) =>
         {
             Width = _viewModel.OverlayWidth;
@@ -74,6 +82,7 @@ public partial class OverlayWindow : Window
                 SizeToContent = SizeToContent.Manual;
                 Height = _viewModel.OverlayHeight;
             }
+            ApplyPositionClamped(_viewModel.Position.X, _viewModel.Position.Y);
             UpdateClip();
             if (_viewModel.DynamicBackground)
                 ToggleDynamicBackground(true);
@@ -112,6 +121,9 @@ public partial class OverlayWindow : Window
             case nameof(OverlayViewModel.CornerRadius):
                 UpdateClip();
                 break;
+            case nameof(OverlayViewModel.Position):
+                ApplyPositionClamped(_viewModel.Position.X, _viewModel.Position.Y);
+                break;
             case nameof(OverlayViewModel.ProgressPercent):
                 OnProgressUpdated(_viewModel.ProgressPercent);
                 break;
@@ -130,6 +142,13 @@ public partial class OverlayWindow : Window
                 }
                 break;
         }
+    }
+
+    private void ApplyPositionClamped(double x, double y)
+    {
+        var workArea = SystemParameters.WorkArea;
+        Left = Math.Max(workArea.Left, Math.Min(x, workArea.Right - ActualWidth));
+        Top = Math.Max(workArea.Top, Math.Min(y, workArea.Bottom - ActualHeight));
     }
 
     private bool _animationRunning;

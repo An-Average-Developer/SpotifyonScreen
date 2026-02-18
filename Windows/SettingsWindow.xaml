@@ -795,10 +795,7 @@
                                           Style="{StaticResource ModernButton}"
                                           Margin="0,0,12,12"
                                           Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}"/>
-                                    <Button Content="View on GitHub"
-                                          Command="{Binding OpenGitHubCommand}"
-                                          Style="{StaticResource SecondaryButton}"
-                                          Margin="0,0,0,12"/>
+
                                 </WrapPanel>
                             </StackPanel>
                         </ScrollViewer>

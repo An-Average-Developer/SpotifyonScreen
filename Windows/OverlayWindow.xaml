@@ -9,9 +9,7 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         SizeToContent="Height"
-        Width="380"
-        Left="{Binding Position.X, Mode=TwoWay}"
-        Top="{Binding Position.Y, Mode=TwoWay}"
+        WindowStartupLocation="Manual"
         Focusable="True">
 
     <Window.Resources>
