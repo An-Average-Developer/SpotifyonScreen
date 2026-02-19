@@ -1,2 +1,2 @@
-1.0.0
-- First Versión of SpotifyonScreen
+1.0.1
+- Fixed an FPS drop when the song changes

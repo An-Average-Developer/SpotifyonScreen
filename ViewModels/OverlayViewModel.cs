@@ -158,7 +158,7 @@ public class OverlayViewModel : INotifyPropertyChanged
 
     private void OnTrackUpdated(object? sender, SpotifyTrackData data)
     {
-        Application.Current?.Dispatcher.Invoke(() =>
+        Application.Current?.Dispatcher.InvokeAsync(() =>
         {
             TrackName = data.TrackName;
             ArtistName = data.ArtistName;
@@ -176,7 +176,7 @@ public class OverlayViewModel : INotifyPropertyChanged
                 _cachedAlbumArtUrl = data.AlbumArtUrl;
 
                 if (File.Exists(data.AlbumArtUrl))
-                    LoadAlbumArtFromFile(data.AlbumArtUrl);
+                    _ = LoadAlbumArtFromFileAsync(data.AlbumArtUrl);
                 else
                     _ = LoadAlbumArtAsync(data.AlbumArtUrl);
             }
@@ -198,25 +198,34 @@ public class OverlayViewModel : INotifyPropertyChanged
 
 
 
-    private void LoadAlbumArtFromFile(string filePath)
+    private async Task LoadAlbumArtFromFileAsync(string filePath)
     {
         try
         {
-            var bytes = File.ReadAllBytes(filePath);
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.StreamSource = new MemoryStream(bytes);
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.DecodePixelWidth = AlbumArtSize * 2;
-            bitmap.EndInit();
-            bitmap.Freeze();
-            AlbumArt = bitmap;
+            var decodeWidth = AlbumArtSize * 2;
+            var extractColors = DynamicBackground;
 
-            if (DynamicBackground)
+            var (bitmap, colors) = await Task.Run(() =>
             {
-                var colors = AlbumColorExtractor.ExtractColors(bitmap);
+                var bytes = File.ReadAllBytes(filePath);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.StreamSource = new MemoryStream(bytes);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.DecodePixelWidth = decodeWidth;
+                bmp.EndInit();
+                bmp.Freeze();
+
+                List<Color>? clrs = null;
+                if (extractColors)
+                    clrs = AlbumColorExtractor.ExtractColors(bmp);
+
+                return (bmp, clrs);
+            });
+
+            AlbumArt = bitmap;
+            if (colors != null)
                 AlbumColors = colors;
-            }
         }
         catch (Exception ex)
         {
@@ -229,22 +238,32 @@ public class OverlayViewModel : INotifyPropertyChanged
         try
         {
             var bytes = await _httpClient.GetByteArrayAsync(url);
+
+            var decodeWidth = AlbumArtSize * 2; // 2x for high DPI
+            var extractColors = DynamicBackground;
+
+            var (bitmap, colors) = await Task.Run(() =>
+            {
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.StreamSource = new MemoryStream(bytes);
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.DecodePixelWidth = decodeWidth;
+                bmp.EndInit();
+                bmp.Freeze();
+
+                List<Color>? clrs = null;
+                if (extractColors)
+                    clrs = AlbumColorExtractor.ExtractColors(bmp);
+
+                return (bmp, clrs);
+            });
+
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                var bitmap = new BitmapImage();
-                bitmap.BeginInit();
-                bitmap.StreamSource = new MemoryStream(bytes);
-                bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                bitmap.DecodePixelWidth = AlbumArtSize * 2; // 2x for high DPI
-                bitmap.EndInit();
-                bitmap.Freeze();
                 AlbumArt = bitmap;
-
-                if (DynamicBackground)
-                {
-                    var colors = AlbumColorExtractor.ExtractColors(bitmap);
+                if (colors != null)
                     AlbumColors = colors;
-                }
             });
         }
         catch (Exception ex)
