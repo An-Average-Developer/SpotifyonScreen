@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 using System.Collections.Generic;
 using SpotifyOnScreen.Models;
@@ -54,6 +55,10 @@ public class OverlayViewModel : INotifyPropertyChanged
     private WindowPosition _position = new();
     private double _overlayWidth = 380;
     private double _overlayHeight = 0;
+    private Brush _progressBarBrush = new SolidColorBrush(Color.FromRgb(29, 185, 84));
+    private bool _progressBarGlow;
+    private bool _progressBarDynamic;
+    private Effect? _progressBarEffect;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -91,10 +96,42 @@ public class OverlayViewModel : INotifyPropertyChanged
         }
     }
     public double BackgroundOpacity { get => _backgroundOpacity; set { _backgroundOpacity = value; OnPropertyChanged(); } }
-    public List<Color> AlbumColors { get => _albumColors; set { _albumColors = value; OnPropertyChanged(); } }
+    public List<Color> AlbumColors
+    {
+        get => _albumColors;
+        set
+        {
+            _albumColors = value;
+            OnPropertyChanged();
+            if (_progressBarDynamic && value.Count > 0)
+                ProgressBarBrush = new SolidColorBrush(value[0]);
+        }
+    }
     public WindowPosition Position { get => _position; set { _position = value; OnPropertyChanged(); } }
     public double OverlayWidth { get => _overlayWidth; set { _overlayWidth = value; OnPropertyChanged(); } }
     public double OverlayHeight { get => _overlayHeight; set { _overlayHeight = value; OnPropertyChanged(); } }
+    public Brush ProgressBarBrush
+    {
+        get => _progressBarBrush;
+        set { _progressBarBrush = value; OnPropertyChanged(); UpdateProgressBarEffect(); }
+    }
+    public bool ProgressBarGlow
+    {
+        get => _progressBarGlow;
+        set { _progressBarGlow = value; OnPropertyChanged(); UpdateProgressBarEffect(); }
+    }
+    public bool ProgressBarDynamic
+    {
+        get => _progressBarDynamic;
+        set
+        {
+            _progressBarDynamic = value;
+            OnPropertyChanged();
+            if (value && _albumColors.Count > 0)
+                ProgressBarBrush = new SolidColorBrush(_albumColors[0]);
+        }
+    }
+    public Effect? ProgressBarEffect { get => _progressBarEffect; set { _progressBarEffect = value; OnPropertyChanged(); } }
 
     public OverlayViewModel(ConfigurationService configService, IPlayerService playerService)
     {
@@ -137,6 +174,29 @@ public class OverlayViewModel : INotifyPropertyChanged
         Padding = appearance.Padding;
         AlbumArtSize = appearance.AlbumArtSize;
         DynamicBackground = appearance.DynamicBackground;
+        ProgressBarGlow = appearance.ProgressBarGlow;
+        ProgressBarDynamic = appearance.ProgressBarDynamic;
+        if (!appearance.ProgressBarDynamic)
+            ProgressBarBrush = (Brush)new BrushConverter().ConvertFrom(appearance.ProgressBarColor)!;
+    }
+
+    private void UpdateProgressBarEffect()
+    {
+        if (_progressBarGlow)
+        {
+            var color = (_progressBarBrush as SolidColorBrush)?.Color ?? Colors.White;
+            ProgressBarEffect = new DropShadowEffect
+            {
+                BlurRadius = 10,
+                ShadowDepth = 0,
+                Opacity = 1.0,
+                Color = color
+            };
+        }
+        else
+        {
+            ProgressBarEffect = null;
+        }
     }
 
     public void SavePosition(double x, double y)
@@ -203,7 +263,7 @@ public class OverlayViewModel : INotifyPropertyChanged
         try
         {
             var decodeWidth = AlbumArtSize * 2;
-            var extractColors = DynamicBackground;
+            var extractColors = DynamicBackground || ProgressBarDynamic;
 
             var (bitmap, colors) = await Task.Run(() =>
             {
@@ -240,7 +300,7 @@ public class OverlayViewModel : INotifyPropertyChanged
             var bytes = await _httpClient.GetByteArrayAsync(url);
 
             var decodeWidth = AlbumArtSize * 2; // 2x for high DPI
-            var extractColors = DynamicBackground;
+            var extractColors = DynamicBackground || ProgressBarDynamic;
 
             var (bitmap, colors) = await Task.Run(() =>
             {

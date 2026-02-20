@@ -99,11 +99,11 @@
                     <Grid Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="3"
                           Margin="0,8,0,0"
                           Height="3"
-                          Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}"
-                          ClipToBounds="True">
+                          Visibility="{Binding ShowProgressBar, Converter={StaticResource BoolToVis}}">
                         <Border Background="#30FFFFFF" CornerRadius="1.5"/>
                         <Border x:Name="ProgressFill"
-                                Background="{Binding AccentBrush}"
+                                Background="{Binding ProgressBarBrush}"
+                                Effect="{Binding ProgressBarEffect}"
                                 CornerRadius="1.5"
                                 HorizontalAlignment="Stretch"
                                 RenderTransformOrigin="0,0.5">

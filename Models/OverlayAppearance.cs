@@ -14,4 +14,7 @@ public class OverlayAppearance
     public int Padding { get; set; } = 12;
     public int AlbumArtSize { get; set; } = 64;
     public bool DynamicBackground { get; set; } = false;
+    public string ProgressBarColor { get; set; } = "#FF1DB954";
+    public bool ProgressBarGlow { get; set; } = false;
+    public bool ProgressBarDynamic { get; set; } = false;
 }

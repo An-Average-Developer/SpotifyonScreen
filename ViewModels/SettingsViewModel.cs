@@ -85,6 +85,15 @@ public class SettingsViewModel : INotifyPropertyChanged
     public ICommand ApplyXLArtCommand { get; }
     public ICommand ApplyXXLArtCommand { get; }
 
+    // Progress bar color presets
+    public ICommand ProgressBarSpotifyGreenCommand { get; }
+    public ICommand ProgressBarWhiteCommand { get; }
+    public ICommand ProgressBarRedCommand { get; }
+    public ICommand ProgressBarBlueCommand { get; }
+    public ICommand ProgressBarPurpleCommand { get; }
+    public ICommand ProgressBarGoldCommand { get; }
+    public ICommand ProgressBarCyanCommand { get; }
+
     // Update commands
     public ICommand CheckForUpdatesCommand { get; }
     public ICommand DownloadUpdateCommand { get; }
@@ -231,6 +240,14 @@ public class SettingsViewModel : INotifyPropertyChanged
         ApplyXLArtCommand = new RelayCommand(() => ApplyArtSize(100));
         ApplyXXLArtCommand = new RelayCommand(() => ApplyArtSize(128));
 
+        ProgressBarSpotifyGreenCommand = new RelayCommand(() => ApplyProgressBarColor("#FF1DB954"));
+        ProgressBarWhiteCommand = new RelayCommand(() => ApplyProgressBarColor("#FFFFFFFF"));
+        ProgressBarRedCommand = new RelayCommand(() => ApplyProgressBarColor("#FFE53935"));
+        ProgressBarBlueCommand = new RelayCommand(() => ApplyProgressBarColor("#FF2196F3"));
+        ProgressBarPurpleCommand = new RelayCommand(() => ApplyProgressBarColor("#FF9C27B0"));
+        ProgressBarGoldCommand = new RelayCommand(() => ApplyProgressBarColor("#FFFFC107"));
+        ProgressBarCyanCommand = new RelayCommand(() => ApplyProgressBarColor("#FF00BCD4"));
+
         CheckForUpdatesCommand = new RelayCommand(async () => await CheckForUpdatesAsync());
         DownloadUpdateCommand = new RelayCommand(ShowChangelogView, () => IsUpdateAvailable && !IsDownloading);
         AcceptInstallationCommand = new RelayCommand(async () => await AcceptInstallationAsync(), () => !IsDownloading);
@@ -331,6 +348,13 @@ public class SettingsViewModel : INotifyPropertyChanged
     private void ApplyArtSize(int size)
     {
         _settings.Appearance.AlbumArtSize = size;
+        OnPropertyChanged(nameof(Settings));
+        Save();
+    }
+
+    private void ApplyProgressBarColor(string color)
+    {
+        _settings.Appearance.ProgressBarColor = color;
         OnPropertyChanged(nameof(Settings));
         Save();
     }

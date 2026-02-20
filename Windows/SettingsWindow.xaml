@@ -525,35 +525,59 @@
                                       Style="{StaticResource ModernComboBox}"
                                       Margin="0,0,0,16"/>
 
-                            <TextBlock Text="Track Font Size:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.TrackFontSize, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Track Font Size:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.TrackFontSize, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Artist Font Size:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.ArtistFontSize, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                            </Grid>
 
-                            <TextBlock Text="Artist Font Size:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.ArtistFontSize, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Text Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.TextColor, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Secondary Text Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.SecondaryTextColor, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                            </Grid>
 
-                            <TextBlock Text="Text Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.TextColor, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
-
-                            <TextBlock Text="Secondary Text Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.SecondaryTextColor, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
-
-                            <TextBlock Text="Accent Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.AccentColor, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
-
-                            <TextBlock Text="Background Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
-                            <TextBox Text="{Binding Settings.Appearance.BackgroundColor, UpdateSourceTrigger=PropertyChanged}"
-                                   Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,16"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Accent Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.AccentColor, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Background Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.BackgroundColor, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"/>
+                                </StackPanel>
+                            </Grid>
 
                             <DockPanel Margin="0,0,0,8">
                                 <TextBlock Text="Background Opacity:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}"/>
@@ -618,6 +642,99 @@
                             <TextBox Text="{Binding Settings.Appearance.CornerRadius, UpdateSourceTrigger=PropertyChanged}"
                                    Style="{StaticResource ModernTextBox}"
                                    Margin="0,0,0,24"/>
+
+                            <!-- Progress Bar -->
+                            <TextBlock Text="Progress bar"
+                                     FontSize="16"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource TextSecondary}"
+                                     Margin="0,0,0,16"/>
+
+                            <Border Background="{StaticResource SurfaceColor}"
+                                    CornerRadius="8"
+                                    Padding="16"
+                                    BorderBrush="{StaticResource BorderColor}"
+                                    BorderThickness="1"
+                                    Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Color (hex):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                                    <TextBox Text="{Binding Settings.Appearance.ProgressBarColor, UpdateSourceTrigger=PropertyChanged}"
+                                             Style="{StaticResource ModernTextBox}"
+                                             Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="Presets:"
+                                             FontSize="12"
+                                             Foreground="{StaticResource TextSecondary}"
+                                             Margin="0,0,0,8"/>
+                                    <WrapPanel Margin="0,0,0,4">
+                                        <Button Command="{Binding ProgressBarSpotifyGreenCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#1DB954" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Spotify Green"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarWhiteCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#FFFFFF" BorderBrush="#555" BorderThickness="1" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="White"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarRedCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#E53935" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Red"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarBlueCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#2196F3" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Blue"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarPurpleCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#9C27B0" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Purple"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarGoldCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#FFC107" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Gold"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button Command="{Binding ProgressBarCyanCommand}"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Padding="10,6" FontSize="12" Margin="0,0,6,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Width="10" Height="10" CornerRadius="2" Background="#00BCD4" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="Cyan"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </WrapPanel>
+
+                                    <CheckBox Content="Glow effect"
+                                              IsChecked="{Binding Settings.Appearance.ProgressBarGlow}"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Margin="0,8,0,4"/>
+                                    <CheckBox Content="Dynamic color (use dominant album art color)"
+                                              IsChecked="{Binding Settings.Appearance.ProgressBarDynamic}"
+                                              Style="{StaticResource ModernCheckBox}"
+                                              Margin="0,0,0,0"/>
+                                </StackPanel>
+                            </Border>
 
                             <Button Content="Save Appearance"
                                   Command="{Binding SaveCommand}"
