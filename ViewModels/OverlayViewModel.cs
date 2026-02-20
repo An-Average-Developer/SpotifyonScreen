@@ -185,13 +185,20 @@ public class OverlayViewModel : INotifyPropertyChanged
         if (_progressBarGlow)
         {
             var color = (_progressBarBrush as SolidColorBrush)?.Color ?? Colors.White;
-            ProgressBarEffect = new DropShadowEffect
+            if (_progressBarEffect is DropShadowEffect existing)
             {
-                BlurRadius = 10,
-                ShadowDepth = 0,
-                Opacity = 1.0,
-                Color = color
-            };
+                existing.Color = color;
+            }
+            else
+            {
+                ProgressBarEffect = new DropShadowEffect
+                {
+                    BlurRadius = 10,
+                    ShadowDepth = 0,
+                    Opacity = 1.0,
+                    Color = color
+                };
+            }
         }
         else
         {
