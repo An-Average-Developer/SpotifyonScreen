@@ -1,2 +1,2 @@
-1.0.3
-- Fixed an FPS drop when the song changes caused by the progress bar
+1.0.4
+- Fixed frame drops on song change when Dynamic Background or Progress Bar Dynamic Color is enabled

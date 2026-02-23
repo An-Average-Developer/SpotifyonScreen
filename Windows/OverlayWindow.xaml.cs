@@ -110,7 +110,8 @@ public partial class OverlayWindow : Window
         switch (e.PropertyName)
         {
             case nameof(OverlayViewModel.AlbumColors):
-                UpdateTornadoColors(_viewModel.AlbumColors);
+                var colors = _viewModel.AlbumColors;
+                Dispatcher.InvokeAsync(() => UpdateTornadoColors(colors), System.Windows.Threading.DispatcherPriority.Background);
                 break;
             case nameof(OverlayViewModel.DynamicBackground):
                 ToggleDynamicBackground(_viewModel.DynamicBackground);
@@ -125,7 +126,8 @@ public partial class OverlayWindow : Window
                 ApplyPositionClamped(_viewModel.Position.X, _viewModel.Position.Y);
                 break;
             case nameof(OverlayViewModel.ProgressPercent):
-                OnProgressUpdated(_viewModel.ProgressPercent);
+                var progress = _viewModel.ProgressPercent;
+                Dispatcher.InvokeAsync(() => OnProgressUpdated(progress), System.Windows.Threading.DispatcherPriority.Background);
                 break;
             case nameof(OverlayViewModel.OverlayWidth):
                 Width = _viewModel.OverlayWidth;
