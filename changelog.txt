@@ -1,2 +1,2 @@
-1.0.4
-- Fixed frame drops on song change when Dynamic Background or Progress Bar Dynamic Color is enabled
+1.0.5
+- Improved the performance when the window is visible

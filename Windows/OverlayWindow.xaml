@@ -20,7 +20,7 @@
         <!-- Single clipped container: everything lives in here with rounded corners -->
         <Grid x:Name="ClippedContainer" SizeChanged="ClippedContainer_SizeChanged">
             <Grid.Effect>
-                <DropShadowEffect BlurRadius="20" ShadowDepth="0" Opacity="0.4" Color="#000000"/>
+                <DropShadowEffect BlurRadius="6" ShadowDepth="0" Opacity="0.4" Color="#000000"/>
             </Grid.Effect>
 
             <!-- Static background (visible when dynamic is OFF) -->
@@ -53,7 +53,8 @@
                     </Grid.RowDefinitions>
 
                     <!-- Album Art -->
-                    <Border Grid.Column="0" Grid.RowSpan="3"
+                    <Border x:Name="AlbumArtBorder"
+                            Grid.Column="0" Grid.RowSpan="3"
                             Width="{Binding AlbumArtSize}"
                             Height="{Binding AlbumArtSize}"
                             CornerRadius="8"
