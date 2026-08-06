@@ -641,7 +641,12 @@
                             <TextBlock Text="Corner Radius:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
                             <TextBox Text="{Binding Settings.Appearance.CornerRadius, UpdateSourceTrigger=PropertyChanged}"
                                    Style="{StaticResource ModernTextBox}"
-                                   Margin="0,0,0,24"/>
+                                   Margin="0,0,0,16"/>
+
+                            <CheckBox Content="Boxed style (separate pill sections + dotted timeline)"
+                                    IsChecked="{Binding Settings.Appearance.BoxedStyle}"
+                                    Style="{StaticResource ModernCheckBox}"
+                                    Margin="0,0,0,24"/>
 
                             <!-- Progress Bar -->
                             <TextBlock Text="Progress bar"

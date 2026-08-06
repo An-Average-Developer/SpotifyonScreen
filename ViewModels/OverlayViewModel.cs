@@ -59,6 +59,11 @@ public class OverlayViewModel : INotifyPropertyChanged
     private bool _progressBarGlow;
     private bool _progressBarDynamic;
     private Effect? _progressBarEffect;
+    private bool _boxedStyle;
+    private string _elapsedTimeText = "0:00";
+    private string _totalTimeText = "0:00";
+    private double _lastPolledProgressMs;
+    private DateTime _lastPollTimestamp = DateTime.UtcNow;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -132,6 +137,9 @@ public class OverlayViewModel : INotifyPropertyChanged
         }
     }
     public Effect? ProgressBarEffect { get => _progressBarEffect; set { _progressBarEffect = value; OnPropertyChanged(); } }
+    public bool BoxedStyle { get => _boxedStyle; set { _boxedStyle = value; OnPropertyChanged(); } }
+    public string ElapsedTimeText { get => _elapsedTimeText; set { _elapsedTimeText = value; OnPropertyChanged(); } }
+    public string TotalTimeText { get => _totalTimeText; set { _totalTimeText = value; OnPropertyChanged(); } }
 
     public OverlayViewModel(ConfigurationService configService, IPlayerService playerService)
     {
@@ -178,6 +186,27 @@ public class OverlayViewModel : INotifyPropertyChanged
         ProgressBarDynamic = appearance.ProgressBarDynamic;
         if (!appearance.ProgressBarDynamic)
             ProgressBarBrush = (Brush)new BrushConverter().ConvertFrom(appearance.ProgressBarColor)!;
+        BoxedStyle = appearance.BoxedStyle;
+    }
+
+    // Estimated elapsed position, interpolated between polls so a boxed-style
+    // time label can tick every second instead of only updating on poll.
+    public double GetEstimatedElapsedMs()
+    {
+        if (_durationMs <= 0) return 0;
+        var elapsed = _lastPolledProgressMs;
+        if (IsPlaying)
+            elapsed += (DateTime.UtcNow - _lastPollTimestamp).TotalMilliseconds;
+        return Math.Clamp(elapsed, 0, _durationMs);
+    }
+
+    public static string FormatTime(double ms)
+    {
+        if (ms < 0) ms = 0;
+        var span = TimeSpan.FromMilliseconds(ms);
+        return span.Hours > 0
+            ? $"{span.Hours}:{span.Minutes:D2}:{span.Seconds:D2}"
+            : $"{span.Minutes:D2}:{span.Seconds:D2}";
     }
 
     private void UpdateProgressBarEffect()
@@ -234,6 +263,10 @@ public class OverlayViewModel : INotifyPropertyChanged
             HasTrack = true;
 
             _durationMs = data.DurationMs;
+            _lastPolledProgressMs = data.ProgressMs;
+            _lastPollTimestamp = DateTime.UtcNow;
+            TotalTimeText = FormatTime(_durationMs);
+            ElapsedTimeText = FormatTime(_lastPolledProgressMs);
 
             if (_durationMs > 0)
                 ProgressPercent = Math.Clamp((double)data.ProgressMs / _durationMs, 0.0, 1.0);
@@ -260,6 +293,9 @@ public class OverlayViewModel : INotifyPropertyChanged
             IsPlaying = false;
             HasTrack = false;
             ProgressPercent = 0;
+            _lastPolledProgressMs = 0;
+            ElapsedTimeText = "0:00";
+            TotalTimeText = "0:00";
         });
     }
 

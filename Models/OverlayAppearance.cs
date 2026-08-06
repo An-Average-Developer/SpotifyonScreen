@@ -17,4 +17,5 @@ public class OverlayAppearance
     public string ProgressBarColor { get; set; } = "#FF1DB954";
     public bool ProgressBarGlow { get; set; } = false;
     public bool ProgressBarDynamic { get; set; } = false;
+    public bool BoxedStyle { get; set; } = false;
 }

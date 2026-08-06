@@ -46,19 +46,55 @@ public partial class OverlayWindow : Window
     private double _resizeStartWidth;
     private IntPtr _hwnd;
 
-    private readonly List<TornadoBlob> _blobs = [];
     private bool _tornadoTransitioning;
     private DateTime _lastTornadoTick = DateTime.Now;
+
+    // One tornado "layer" for the classic full-overlay swirl, plus one per Boxed-style chip —
+    // each chip gets its own independent swirl clipped to its own rounded bounds.
+    private TornadoLayer? _mainLayer;
+    private TornadoLayer? _chip1Layer;
+    private TornadoLayer? _chip2Layer;
 
     // Persistent brushes so we can animate their Color property smoothly
     private readonly SolidColorBrush _dynamicBaseBrush = new(Color.FromArgb(210, 6, 6, 9));
     private readonly SolidColorBrush _dynamicOverlayBrush = new(Color.FromArgb(90, 5, 5, 7));
+    private readonly SolidColorBrush _chip1BaseBrush = new(Color.FromArgb(210, 6, 6, 9));
+    private readonly SolidColorBrush _chip1OverlayBrush = new(Color.FromArgb(90, 5, 5, 7));
+    private readonly SolidColorBrush _chip2BaseBrush = new(Color.FromArgb(210, 6, 6, 9));
+    private readonly SolidColorBrush _chip2OverlayBrush = new(Color.FromArgb(90, 5, 5, 7));
+
+    // Mutable inner brush for the boxed style's dotted progress fill, kept in sync with ProgressBarBrush
+    private readonly SolidColorBrush _dotFillInnerBrush = new(Color.FromRgb(29, 185, 84));
+    private DispatcherTimer? _timeLabelTimer;
+    private double _dottedTrackWidth;
 
     public OverlayWindow(OverlayViewModel viewModel)
     {
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = _viewModel;
+
+        _mainLayer = new TornadoLayer
+        {
+            Canvas = TornadoCanvas, DynamicGrid = DynamicBgGrid,
+            BaseBrush = _dynamicBaseBrush, OverlayBrush = _dynamicOverlayBrush, SizeSource = ClippedContainer
+        };
+        _chip1Layer = new TornadoLayer
+        {
+            Canvas = Chip1TornadoCanvas, DynamicGrid = Chip1DynamicGrid,
+            BaseBrush = _chip1BaseBrush, OverlayBrush = _chip1OverlayBrush, SizeSource = Chip1Border
+        };
+        _chip2Layer = new TornadoLayer
+        {
+            Canvas = Chip2TornadoCanvas, DynamicGrid = Chip2DynamicGrid,
+            BaseBrush = _chip2BaseBrush, OverlayBrush = _chip2OverlayBrush, SizeSource = Chip2Border
+        };
+        DynamicBaseBorder.Background = _dynamicBaseBrush;
+        DynamicDarkOverlay.Background = _dynamicOverlayBrush;
+        Chip1DynamicBase.Background = _chip1BaseBrush;
+        Chip1DynamicOverlay.Background = _chip1OverlayBrush;
+        Chip2DynamicBase.Background = _chip2BaseBrush;
+        Chip2DynamicOverlay.Background = _chip2OverlayBrush;
 
         SourceInitialized += OnSourceInitialized;
 
@@ -88,18 +124,81 @@ public partial class OverlayWindow : Window
             }
             ApplyPositionClamped(_viewModel.Position.X, _viewModel.Position.Y);
             UpdateClip();
-            // Assign mutable brushes so UpdateTornadoColors can animate them in place
-            DynamicBaseBorder.Background = _dynamicBaseBrush;
-            DynamicDarkOverlay.Background = _dynamicOverlayBrush;
             if (_viewModel.DynamicBackground)
                 ToggleDynamicBackground(true);
+            else
+                // No animation needed here — just start the flat box in the right state
+                // (hidden if Boxed style is on, since the chips carry their own background).
+                StaticBgBorder.Visibility = _viewModel.BoxedStyle ? Visibility.Collapsed : Visibility.Visible;
+
+            InitializeDottedProgressBrushes();
+            _timeLabelTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+            _timeLabelTimer.Tick += (_, _) => UpdateElapsedTimeLabel();
+            if (_viewModel.BoxedStyle)
+                _timeLabelTimer.Start();
         };
+    }
+
+    private void InitializeDottedProgressBrushes()
+    {
+        if (_viewModel.ProgressBarBrush is SolidColorBrush initial)
+            _dotFillInnerBrush.Color = initial.Color;
+
+        DottedTrackBg.Background = BuildDotBrush(new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)), freeze: true);
+        DottedProgressFill.Background = BuildDotBrush(_dotFillInnerBrush, freeze: false);
+    }
+
+    private static DrawingBrush BuildDotBrush(System.Windows.Media.Brush dotBrush, bool freeze)
+    {
+        var geometry = new EllipseGeometry(new System.Windows.Point(1.5, 2.5), 1.4, 1.4);
+        geometry.Freeze();
+        var drawing = new GeometryDrawing(dotBrush, null, geometry);
+        var brush = new DrawingBrush(drawing)
+        {
+            TileMode = TileMode.Tile,
+            Viewport = new Rect(0, 0, 6, 5),
+            ViewportUnits = BrushMappingMode.Absolute,
+            Stretch = Stretch.None
+        };
+        if (freeze) brush.Freeze();
+        return brush;
+    }
+
+    private void UpdateElapsedTimeLabel()
+    {
+        if (!_viewModel.HasTrack) return;
+        _viewModel.ElapsedTimeText = OverlayViewModel.FormatTime(_viewModel.GetEstimatedElapsedMs());
+    }
+
+    // The dotted fill can't use a RenderTransform scale (it would squash the dots into
+    // ellipses) so it's a real Width instead. That means, unlike the classic bar, we need
+    // to know the track's actual pixel width to convert a 0..1 fraction into a Width value.
+    private void DottedProgressTrack_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        _dottedTrackWidth = e.NewSize.Width;
+        DottedProgressFill.BeginAnimation(FrameworkElement.WidthProperty, null);
+        DottedProgressFill.Width = _dottedTrackWidth * _viewModel.ProgressPercent;
     }
 
     // Called from XAML SizeChanged on ClippedContainer
     private void ClippedContainer_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         UpdateClip();
+    }
+
+    // A Border's CornerRadius only clips its own Background/BorderBrush, not arbitrary child
+    // content — the per-chip swirl needs an explicit rounded clip to match the chip's shape.
+    private void ChipBorder_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        double w = e.NewSize.Width;
+        double h = e.NewSize.Height;
+        if (w <= 0 || h <= 0) return;
+
+        var clip = new RectangleGeometry(new Rect(0, 0, w, h), 8, 8);
+        if (ReferenceEquals(sender, Chip1Border))
+            Chip1DynamicGrid.Clip = clip;
+        else if (ReferenceEquals(sender, Chip2Border))
+            Chip2DynamicGrid.Clip = clip;
     }
 
     private void UpdateClip()
@@ -154,6 +253,19 @@ public partial class OverlayWindow : Window
                     SizeToContent = SizeToContent.Height;
                 }
                 break;
+            case nameof(OverlayViewModel.ProgressBarBrush):
+                if (_viewModel.ProgressBarBrush is SolidColorBrush scb)
+                    _dotFillInnerBrush.Color = scb.Color;
+                break;
+            case nameof(OverlayViewModel.BoxedStyle):
+                if (_viewModel.BoxedStyle)
+                    _timeLabelTimer?.Start();
+                else
+                    _timeLabelTimer?.Stop();
+                // Re-evaluate whether the flat background box or the swirl should show,
+                // since Boxed style changes which one is allowed to render.
+                ToggleDynamicBackground(_viewModel.DynamicBackground);
+                break;
         }
     }
 
@@ -181,8 +293,7 @@ public partial class OverlayWindow : Window
         if (isPaused)
         {
             // Stop animation, hold at polled position
-            ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            ProgressScale.ScaleX = target;
+            SetProgressScale(target);
             _animationRunning = false;
             return;
         }
@@ -192,18 +303,7 @@ public partial class OverlayWindow : Window
             // Start fresh animation from polled position to end of song
             _animatingTrack = trackId;
             var remainingMs = duration * (1.0 - target);
-
-            ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-            var anim = new DoubleAnimation
-            {
-                From = target,
-                To = 1.0,
-                Duration = TimeSpan.FromMilliseconds(remainingMs)
-            };
-            // Cap render rate: 15fps is imperceptible for a slow progress bar,
-            // but cuts per-frame DWM compositing from 60/s down to 15/s.
-            Timeline.SetDesiredFrameRate(anim, 15);
-            ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
+            AnimateProgressScale(target, 1.0, remainingMs);
             _animationRunning = true;
             return;
         }
@@ -211,50 +311,101 @@ public partial class OverlayWindow : Window
         // Regular poll, same track, animation already running — do nothing
     }
 
+    // The classic bar's RenderTransform and the boxed style's dotted-fill Width are
+    // driven off the same target/duration so they stay in lockstep.
+    private void SetProgressScale(double value)
+    {
+        ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        ProgressScale.ScaleX = value;
+
+        DottedProgressFill.BeginAnimation(FrameworkElement.WidthProperty, null);
+        DottedProgressFill.Width = _dottedTrackWidth * value;
+    }
+
+    private void AnimateProgressScale(double from, double to, double durationMs)
+    {
+        ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+        DottedProgressFill.BeginAnimation(FrameworkElement.WidthProperty, null);
+
+        var duration = TimeSpan.FromMilliseconds(durationMs);
+
+        var scaleAnim = new DoubleAnimation { From = from, To = to, Duration = duration };
+        // Cap render rate: 15fps is imperceptible for a slow progress bar,
+        // but cuts per-frame DWM compositing from 60/s down to 15/s.
+        Timeline.SetDesiredFrameRate(scaleAnim, 15);
+        ProgressScale.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+
+        var widthAnim = new DoubleAnimation
+        {
+            From = _dottedTrackWidth * from,
+            To = _dottedTrackWidth * to,
+            Duration = duration
+        };
+        Timeline.SetDesiredFrameRate(widthAnim, 15);
+        DottedProgressFill.BeginAnimation(FrameworkElement.WidthProperty, widthAnim);
+    }
+
     private void ToggleDynamicBackground(bool enabled)
     {
         // Reset any in-flight tornado fade so the flag doesn't get stuck
         _tornadoTransitioning = false;
+        bool boxed = _viewModel.BoxedStyle;
 
         if (enabled)
         {
-            if (_tornadoTimer == null)
+            EnsureTornadoTimerRunning();
+
+            if (boxed)
             {
-                // Render priority keeps up with WPF's own render cycle at 30fps
-                _tornadoTimer = new DispatcherTimer(DispatcherPriority.Render)
-                {
-                    Interval = TimeSpan.FromMilliseconds(33)
-                };
-                _tornadoTimer.Tick += TornadoTimer_Tick;
-            }
-            _lastTornadoTick = DateTime.Now;
-            _tornadoTimer.Start();
-
-            // Build blobs immediately so they're ready when the grid fades in
-            if (_viewModel.AlbumColors.Count > 0)
-                RebuildTornadoBlobs(_viewModel.AlbumColors);
-
-            // Fade: static out, dynamic in
-            DynamicBgGrid.Opacity = 0;
-            DynamicBgGrid.Visibility = Visibility.Visible;
-
-            var fadeInDynamic = new DoubleAnimation(0.0, _viewModel.BackgroundOpacity, TimeSpan.FromMilliseconds(400));
-            fadeInDynamic.Completed += (_, _) =>
-            {
+                // Boxed style never shows the overall box — the swirl lives inside the chips instead.
                 StaticBgBorder.BeginAnimation(UIElement.OpacityProperty, null);
-                StaticBgBorder.Opacity = 1;
                 StaticBgBorder.Visibility = Visibility.Collapsed;
-                // Anchor the opacity as a base value so BackgroundOpacity changes work normally
                 DynamicBgGrid.BeginAnimation(UIElement.OpacityProperty, null);
-                DynamicBgGrid.Opacity = _viewModel.BackgroundOpacity;
-            };
+                DynamicBgGrid.Visibility = Visibility.Collapsed;
 
-            StaticBgBorder.BeginAnimation(UIElement.OpacityProperty,
-                new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(400)));
-            DynamicBgGrid.BeginAnimation(UIElement.OpacityProperty, fadeInDynamic);
+                ShowChipLayer(_chip1Layer!);
+                ShowChipLayer(_chip2Layer!);
+            }
+            else
+            {
+                HideChipLayerImmediate(_chip1Layer!);
+                HideChipLayerImmediate(_chip2Layer!);
+
+                // Build blobs immediately so they're ready when the grid fades in
+                if (_viewModel.AlbumColors.Count > 0)
+                    RebuildTornadoBlobs(_mainLayer!, _viewModel.AlbumColors);
+
+                // Fade: static out, dynamic in
+                DynamicBgGrid.Opacity = 0;
+                DynamicBgGrid.Visibility = Visibility.Visible;
+
+                var fadeInDynamic = new DoubleAnimation(0.0, _viewModel.BackgroundOpacity, TimeSpan.FromMilliseconds(400));
+                fadeInDynamic.Completed += (_, _) =>
+                {
+                    StaticBgBorder.BeginAnimation(UIElement.OpacityProperty, null);
+                    StaticBgBorder.Opacity = 1;
+                    StaticBgBorder.Visibility = Visibility.Collapsed;
+                    // Anchor the opacity as a base value so BackgroundOpacity changes work normally
+                    DynamicBgGrid.BeginAnimation(UIElement.OpacityProperty, null);
+                    DynamicBgGrid.Opacity = _viewModel.BackgroundOpacity;
+                };
+
+                StaticBgBorder.BeginAnimation(UIElement.OpacityProperty,
+                    new DoubleAnimation(1.0, 0.0, TimeSpan.FromMilliseconds(400)));
+                DynamicBgGrid.BeginAnimation(UIElement.OpacityProperty, fadeInDynamic);
+            }
+        }
+        else if (boxed)
+        {
+            HideChipLayer(_chip1Layer!);
+            HideChipLayer(_chip2Layer!);
+            _tornadoTimer?.Stop();
         }
         else
         {
+            HideChipLayerImmediate(_chip1Layer!);
+            HideChipLayerImmediate(_chip2Layer!);
+
             // Fade: dynamic out, static in
             StaticBgBorder.Opacity = 0;
             StaticBgBorder.Visibility = Visibility.Visible;
@@ -276,48 +427,111 @@ public partial class OverlayWindow : Window
         }
     }
 
-    // Crossfades old blobs out and new blobs in — the grid never goes dark.
+    private void EnsureTornadoTimerRunning()
+    {
+        if (_tornadoTimer == null)
+        {
+            // Render priority keeps up with WPF's own render cycle at 30fps
+            _tornadoTimer = new DispatcherTimer(DispatcherPriority.Render)
+            {
+                Interval = TimeSpan.FromMilliseconds(33)
+            };
+            _tornadoTimer.Tick += TornadoTimer_Tick;
+        }
+        _lastTornadoTick = DateTime.Now;
+        _tornadoTimer.Start();
+    }
+
+    private void ShowChipLayer(TornadoLayer layer)
+    {
+        if (_viewModel.AlbumColors.Count > 0 && layer.Blobs.Count == 0)
+            RebuildTornadoBlobs(layer, _viewModel.AlbumColors);
+
+        layer.DynamicGrid.BeginAnimation(UIElement.OpacityProperty, null);
+        layer.DynamicGrid.Opacity = 0;
+        layer.DynamicGrid.Visibility = Visibility.Visible;
+        layer.DynamicGrid.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(0.0, 1.0, TimeSpan.FromMilliseconds(400)));
+    }
+
+    private static void HideChipLayer(TornadoLayer layer)
+    {
+        var fadeOut = new DoubleAnimation(layer.DynamicGrid.Opacity, 0.0, TimeSpan.FromMilliseconds(400));
+        fadeOut.Completed += (_, _) =>
+        {
+            layer.DynamicGrid.BeginAnimation(UIElement.OpacityProperty, null);
+            layer.DynamicGrid.Opacity = 1;
+            layer.DynamicGrid.Visibility = Visibility.Collapsed;
+        };
+        layer.DynamicGrid.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+    }
+
+    private static void HideChipLayerImmediate(TornadoLayer layer)
+    {
+        layer.DynamicGrid.BeginAnimation(UIElement.OpacityProperty, null);
+        layer.DynamicGrid.Opacity = 1;
+        layer.DynamicGrid.Visibility = Visibility.Collapsed;
+    }
+
+    // Crossfades old blobs out and new blobs in for whichever layer(s) are currently active
+    // (the main full-overlay swirl in classic mode, or both chips in Boxed style).
     private void UpdateTornadoColors(List<Color> colors)
     {
         if (!_viewModel.DynamicBackground || colors.Count == 0) return;
         if (_tornadoTransitioning) return;
 
         _tornadoTransitioning = true;
+
+        if (_viewModel.BoxedStyle)
+        {
+            int pending = 2;
+            void OnLayerDone() { if (--pending == 0) _tornadoTransitioning = false; }
+            CrossfadeTornadoLayer(_chip1Layer!, colors, OnLayerDone);
+            CrossfadeTornadoLayer(_chip2Layer!, colors, OnLayerDone);
+        }
+        else
+        {
+            CrossfadeTornadoLayer(_mainLayer!, colors, () => _tornadoTransitioning = false);
+        }
+    }
+
+    private void CrossfadeTornadoLayer(TornadoLayer layer, List<Color> colors, Action onComplete)
+    {
         var duration = TimeSpan.FromMilliseconds(700);
 
         // Animate the base background color in place (no grid flicker)
         var dominant = colors[0];
-        _dynamicBaseBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+        layer.BaseBrush.BeginAnimation(SolidColorBrush.ColorProperty,
             new ColorAnimation(
                 Color.FromArgb(210, (byte)(dominant.R * 0.2), (byte)(dominant.G * 0.2), (byte)(dominant.B * 0.2)),
                 duration));
-        _dynamicOverlayBrush.BeginAnimation(SolidColorBrush.ColorProperty,
+        layer.OverlayBrush.BeginAnimation(SolidColorBrush.ColorProperty,
             new ColorAnimation(
                 Color.FromArgb(90, (byte)(dominant.R * 0.15), (byte)(dominant.G * 0.15), (byte)(dominant.B * 0.15)),
                 duration));
 
         // Fade out current blobs (they keep orbiting while fading)
-        var oldBlobs = new List<TornadoBlob>(_blobs);
+        var oldBlobs = new List<TornadoBlob>(layer.Blobs);
         foreach (var blob in oldBlobs)
         {
             var startOp = blob.Element.Opacity;
             var fadeOut = new DoubleAnimation(startOp, 0.0, duration);
             fadeOut.Completed += (_, _) =>
             {
-                TornadoCanvas.Children.Remove(blob.Element);
-                _blobs.Remove(blob);
+                layer.Canvas.Children.Remove(blob.Element);
+                layer.Blobs.Remove(blob);
             };
             blob.Element.BeginAnimation(UIElement.OpacityProperty, fadeOut);
         }
 
-        // Create new blobs at opacity 0, add to canvas and _blobs so the timer moves them too
-        var newBlobs = CreateBlobs(colors);
+        // Create new blobs at opacity 0, add to canvas and layer.Blobs so the timer moves them too
+        var newBlobs = CreateBlobs(colors, layer.SizeSource.ActualWidth, layer.SizeSource.ActualHeight);
         int remaining = newBlobs.Count > 0 ? newBlobs.Count : 1;
         foreach (var blob in newBlobs)
         {
             blob.Element.Opacity = 0;
-            TornadoCanvas.Children.Add(blob.Element);
-            _blobs.Add(blob);
+            layer.Canvas.Children.Add(blob.Element);
+            layer.Blobs.Add(blob);
 
             var target = blob.TargetOpacity;
             var fadeIn = new DoubleAnimation(0.0, target, duration);
@@ -326,44 +540,45 @@ public partial class OverlayWindow : Window
                 blob.Element.BeginAnimation(UIElement.OpacityProperty, null);
                 blob.Element.Opacity = target;
                 if (--remaining == 0)
-                    _tornadoTransitioning = false;
+                    onComplete();
             };
             blob.Element.BeginAnimation(UIElement.OpacityProperty, fadeIn);
         }
-        if (newBlobs.Count == 0) _tornadoTransitioning = false;
+        if (newBlobs.Count == 0) onComplete();
 
-        UpdateBlobPositions();
+        UpdateBlobPositions(layer.Blobs);
     }
 
     // Used by ToggleDynamicBackground — instant build, no crossfade needed (grid is already fading in).
-    private void RebuildTornadoBlobs(List<Color> colors)
+    private void RebuildTornadoBlobs(TornadoLayer layer, List<Color> colors)
     {
-        TornadoCanvas.Children.Clear();
-        _blobs.Clear();
+        layer.Canvas.Children.Clear();
+        layer.Blobs.Clear();
+        if (colors.Count == 0) return;
 
         var dominant = colors[0];
-        _dynamicBaseBrush.BeginAnimation(SolidColorBrush.ColorProperty, null);
-        _dynamicBaseBrush.Color = Color.FromArgb(210,
+        layer.BaseBrush.BeginAnimation(SolidColorBrush.ColorProperty, null);
+        layer.BaseBrush.Color = Color.FromArgb(210,
             (byte)(dominant.R * 0.2), (byte)(dominant.G * 0.2), (byte)(dominant.B * 0.2));
-        _dynamicOverlayBrush.BeginAnimation(SolidColorBrush.ColorProperty, null);
-        _dynamicOverlayBrush.Color = Color.FromArgb(90,
+        layer.OverlayBrush.BeginAnimation(SolidColorBrush.ColorProperty, null);
+        layer.OverlayBrush.Color = Color.FromArgb(90,
             (byte)(dominant.R * 0.15), (byte)(dominant.G * 0.15), (byte)(dominant.B * 0.15));
 
-        var blobs = CreateBlobs(colors);
-        foreach (var blob in blobs)
+        var newBlobs = CreateBlobs(colors, layer.SizeSource.ActualWidth, layer.SizeSource.ActualHeight);
+        foreach (var blob in newBlobs)
         {
-            TornadoCanvas.Children.Add(blob.Element);
-            _blobs.Add(blob);
+            layer.Canvas.Children.Add(blob.Element);
+            layer.Blobs.Add(blob);
         }
 
-        UpdateBlobPositions();
+        UpdateBlobPositions(layer.Blobs);
     }
 
-    private List<TornadoBlob> CreateBlobs(List<Color> colors)
+    private List<TornadoBlob> CreateBlobs(List<Color> colors, double w, double h)
     {
         var result = new List<TornadoBlob>();
-        double w = ClippedContainer.ActualWidth > 0 ? ClippedContainer.ActualWidth : 380;
-        double h = ClippedContainer.ActualHeight > 0 ? ClippedContainer.ActualHeight : 100;
+        if (w <= 0) w = 380;
+        if (h <= 0) h = 100;
         double cx = w / 2;
         double cy = h / 2;
         double maxDim = Math.Max(w, h);
@@ -424,14 +639,22 @@ public partial class OverlayWindow : Window
         // Cap dt so a stall (e.g. from a transition fade) doesn't cause a jump
         dt = Math.Min(dt, 0.1);
 
-        foreach (var blob in _blobs)
-            blob.Angle += blob.Speed * 1.25 * dt;
-        UpdateBlobPositions();
+        AdvanceLayer(_mainLayer, dt);
+        AdvanceLayer(_chip1Layer, dt);
+        AdvanceLayer(_chip2Layer, dt);
     }
 
-    private void UpdateBlobPositions()
+    private static void AdvanceLayer(TornadoLayer? layer, double dt)
     {
-        foreach (var blob in _blobs)
+        if (layer == null || layer.Blobs.Count == 0) return;
+        foreach (var blob in layer.Blobs)
+            blob.Angle += blob.Speed * 1.25 * dt;
+        UpdateBlobPositions(layer.Blobs);
+    }
+
+    private static void UpdateBlobPositions(List<TornadoBlob> blobs)
+    {
+        foreach (var blob in blobs)
         {
             double x = blob.CenterX + Math.Cos(blob.Angle) * blob.OrbitRadius - blob.Size / 2;
             double y = blob.CenterY + Math.Sin(blob.Angle) * blob.OrbitRadius - blob.Size / 2;
@@ -464,6 +687,7 @@ public partial class OverlayWindow : Window
     {
         _keyboardTimer?.Dispose();
         _tornadoTimer?.Stop();
+        _timeLabelTimer?.Stop();
         base.OnClosed(e);
     }
 
@@ -614,5 +838,17 @@ public partial class OverlayWindow : Window
         public double Speed { get; init; }
         public double Size { get; init; }
         public double TargetOpacity { get; init; }
+    }
+
+    // Bundles everything one independent swirl instance needs: its own canvas, blob list,
+    // mutable base/overlay tint brushes, and the element whose size the blobs are scaled to.
+    private class TornadoLayer
+    {
+        public required Canvas Canvas { get; init; }
+        public required Grid DynamicGrid { get; init; }
+        public required SolidColorBrush BaseBrush { get; init; }
+        public required SolidColorBrush OverlayBrush { get; init; }
+        public required FrameworkElement SizeSource { get; init; }
+        public List<TornadoBlob> Blobs { get; } = [];
     }
 }
