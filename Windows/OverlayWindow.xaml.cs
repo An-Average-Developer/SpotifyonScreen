@@ -16,8 +16,10 @@ namespace SpotifyOnScreen.Windows;
 public partial class OverlayWindow : Window
 {
     private const int GWL_EXSTYLE = -20;
+    private const int GWLP_HWNDPARENT = -8;
     private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_LAYERED = 0x00080000;
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
     private const int VK_LCONTROL = 0xA2;
     private const int VK_RCONTROL = 0xA3;
     private const int VK_LSHIFT = 0xA0;
@@ -33,6 +35,33 @@ public partial class OverlayWindow : Window
 
     [DllImport("user32.dll")]
     private static extern short GetAsyncKeyState(int vKey);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
+    private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
+    private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    // GWLP_HWNDPARENT holds a pointer-sized handle, so on 64-bit processes it must go through
+    // SetWindowLongPtr — the plain SetWindowLong above would truncate the handle to 32 bits.
+    private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong) =>
+        Environment.Is64BitProcess
+            ? SetWindowLongPtr64(hWnd, nIndex, dwNewLong)
+            : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+
+    [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr CreateWindowEx(
+        int dwExStyle, string lpClassName, string lpWindowName, uint dwStyle,
+        int x, int y, int nWidth, int nHeight,
+        IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool DestroyWindow(IntPtr hWnd);
+
+    // Invisible top-level "STATIC" window used purely as an Owner anchor: an owned window
+    // gets no taskbar button / Alt+Tab entry without needing WS_EX_TOOLWINDOW — which matters
+    // because OBS's window-capture enumeration explicitly skips any WS_EX_TOOLWINDOW window.
+    private IntPtr _hiddenOwnerHwnd;
 
     private readonly OverlayViewModel _viewModel;
     private System.Threading.Timer? _keyboardTimer;
@@ -265,6 +294,9 @@ public partial class OverlayWindow : Window
                 // Re-evaluate whether the flat background box or the swirl should show,
                 // since Boxed style changes which one is allowed to render.
                 ToggleDynamicBackground(_viewModel.DynamicBackground);
+                break;
+            case nameof(OverlayViewModel.AllowObsCapture):
+                ApplyObsCaptureMode(_viewModel.AllowObsCapture);
                 break;
         }
     }
@@ -667,6 +699,35 @@ public partial class OverlayWindow : Window
     {
         _hwnd = new WindowInteropHelper(this).Handle;
         SetClickThrough(true);
+        ApplyObsCaptureMode(_viewModel.AllowObsCapture);
+    }
+
+    // OBS's window-capture enumeration (window-helpers.c, check_window_valid) unconditionally
+    // rejects any window with WS_EX_TOOLWINDOW set — so that style can never be used here.
+    // To still keep the overlay out of the taskbar/Alt+Tab, give it a real (invisible) owner
+    // window instead: owned top-level windows get no taskbar button on their own, and OBS's
+    // enumeration doesn't check for an owner at all, so the window stays capturable.
+    private void ApplyObsCaptureMode(bool enabled)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+
+        if (enabled)
+        {
+            if (_hiddenOwnerHwnd == IntPtr.Zero)
+                _hiddenOwnerHwnd = CreateWindowEx(0, "STATIC", "", 0, 0, 0, 0, 0,
+                    IntPtr.Zero, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+
+            SetWindowLongPtr(_hwnd, GWLP_HWNDPARENT, _hiddenOwnerHwnd);
+            int exStyle = GetWindowLong(_hwnd, GWL_EXSTYLE);
+            SetWindowLong(_hwnd, GWL_EXSTYLE, exStyle & ~WS_EX_TOOLWINDOW);
+        }
+        else
+        {
+            // Let WPF re-establish its own default taskbar-hiding behavior.
+            SetWindowLongPtr(_hwnd, GWLP_HWNDPARENT, IntPtr.Zero);
+            ShowInTaskbar = true;
+            ShowInTaskbar = false;
+        }
     }
 
     private void SetClickThrough(bool enable)
@@ -688,6 +749,11 @@ public partial class OverlayWindow : Window
         _keyboardTimer?.Dispose();
         _tornadoTimer?.Stop();
         _timeLabelTimer?.Stop();
+        if (_hiddenOwnerHwnd != IntPtr.Zero)
+        {
+            DestroyWindow(_hiddenOwnerHwnd);
+            _hiddenOwnerHwnd = IntPtr.Zero;
+        }
         base.OnClosed(e);
     }
 

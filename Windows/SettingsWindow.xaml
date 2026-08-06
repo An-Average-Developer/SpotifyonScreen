@@ -499,6 +499,11 @@
                             <CheckBox Content="Start minimized"
                                     IsChecked="{Binding Settings.StartMinimized}"
                                     Style="{StaticResource ModernCheckBox}"/>
+                            <CheckBox Content="Allow OBS / capture software to see the overlay"
+                                    IsChecked="{Binding Settings.AllowObsCapture}"
+                                    Click="AllowObsCaptureCheckBox_Click"
+                                    Style="{StaticResource ModernCheckBox}"
+                                    ToolTip="Keeps the overlay hidden from the taskbar and Alt+Tab, but makes it selectable as an OBS Window Capture source."/>
 
                             <Button Content="Save Settings"
                                   Command="{Binding SaveCommand}"

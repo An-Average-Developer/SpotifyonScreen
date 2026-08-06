@@ -60,6 +60,7 @@ public class OverlayViewModel : INotifyPropertyChanged
     private bool _progressBarDynamic;
     private Effect? _progressBarEffect;
     private bool _boxedStyle;
+    private bool _allowObsCapture;
     private string _elapsedTimeText = "0:00";
     private string _totalTimeText = "0:00";
     private double _lastPolledProgressMs;
@@ -138,6 +139,7 @@ public class OverlayViewModel : INotifyPropertyChanged
     }
     public Effect? ProgressBarEffect { get => _progressBarEffect; set { _progressBarEffect = value; OnPropertyChanged(); } }
     public bool BoxedStyle { get => _boxedStyle; set { _boxedStyle = value; OnPropertyChanged(); } }
+    public bool AllowObsCapture { get => _allowObsCapture; set { _allowObsCapture = value; OnPropertyChanged(); } }
     public string ElapsedTimeText { get => _elapsedTimeText; set { _elapsedTimeText = value; OnPropertyChanged(); } }
     public string TotalTimeText { get => _totalTimeText; set { _totalTimeText = value; OnPropertyChanged(); } }
 
@@ -161,6 +163,7 @@ public class OverlayViewModel : INotifyPropertyChanged
         ShowAlbumArt = _settings.Spotify.ShowAlbumArt;
         OverlayWidth = _settings.Position.Width > 0 ? _settings.Position.Width : 380;
         OverlayHeight = _settings.Position.Height;
+        AllowObsCapture = _settings.AllowObsCapture;
         ApplyAppearance(_settings.Appearance);
     }
 

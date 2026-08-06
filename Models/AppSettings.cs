@@ -30,4 +30,5 @@ public class AppSettings
     public HotkeySettings Hotkeys { get; set; } = new HotkeySettings();
     public bool StartMinimized { get; set; } = false;
     public bool RunAtStartup { get; set; } = true;
+    public bool AllowObsCapture { get; set; } = false;
 }
