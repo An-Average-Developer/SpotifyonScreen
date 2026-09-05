@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
+        Closed += (_, _) => viewModel.Cleanup();
     }
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
@@ -39,6 +40,20 @@ public partial class SettingsWindow : Window
     {
         if (e.ChangedButton == MouseButton.Left)
             DragMove();
+    }
+
+    private void TwitchClientIdHelp_Click(object sender, RoutedEventArgs e)
+    {
+        var window = new TwitchClientIdHelpWindow { Owner = this };
+        window.ShowDialog();
+    }
+
+    private void ManualUpdateLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel viewModel) return;
+
+        var window = new ManualUpdateWindow(viewModel.UpdateService) { Owner = this };
+        window.ShowDialog();
     }
 
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)

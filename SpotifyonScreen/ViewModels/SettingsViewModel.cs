@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
@@ -22,6 +23,7 @@ public class SettingsViewModel : INotifyPropertyChanged
     private readonly SpotifyAuthService _authService;
     private readonly IPlayerService _playerService;
     private readonly UpdateService _updateService;
+    private readonly SongRequestService _songRequestService;
     private readonly Action _onSettingsSaved;
     private readonly Action? _onDisableHotkeys;
     private readonly Action? _onEnableHotkeys;
@@ -41,6 +43,10 @@ public class SettingsViewModel : INotifyPropertyChanged
     private Brush _updateStatusColor = new SolidColorBrush(Color.FromRgb(42, 42, 58));
     private bool _showingChangelogView;
     private string _changelog = string.Empty;
+
+    // Twitch song request fields
+    private bool _twitchIsConnected;
+    private string _twitchStatusText = "Not connected";
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -69,6 +75,10 @@ public class SettingsViewModel : INotifyPropertyChanged
     }
 
     public string SettingsPath => _configService.GetSettingsPath();
+
+    // Exposed so SettingsWindow can hand it to ManualUpdateWindow without the
+    // ViewModel owning window-creation concerns.
+    public UpdateService UpdateService => _updateService;
 
     public ICommand ConnectSpotifyCommand { get; }
     public ICommand DisconnectSpotifyCommand { get; }
@@ -100,6 +110,9 @@ public class SettingsViewModel : INotifyPropertyChanged
     public ICommand AcceptInstallationCommand { get; }
     public ICommand BackFromChangelogCommand { get; }
     public ICommand OpenGitHubCommand { get; }
+
+    // Twitch commands
+    public ICommand ClearSongRequestLogCommand { get; }
 
     public IReadOnlyList<string> FontFamilies { get; } =
     [
@@ -181,6 +194,21 @@ public class SettingsViewModel : INotifyPropertyChanged
         set { _changelog = value; OnPropertyChanged(); }
     }
 
+    // Twitch properties
+    public bool TwitchIsConnected
+    {
+        get => _twitchIsConnected;
+        set { _twitchIsConnected = value; OnPropertyChanged(); }
+    }
+
+    public string TwitchStatusText
+    {
+        get => _twitchStatusText;
+        set { _twitchStatusText = value; OnPropertyChanged(); }
+    }
+
+    public ObservableCollection<SongRequestLogEntry> SongRequestLog { get; } = new();
+
     public bool IsLocalMode
     {
         get => _settings.PlayerMode == "Local";
@@ -208,6 +236,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         SpotifyAuthService authService,
         IPlayerService playerService,
         UpdateService updateService,
+        SongRequestService songRequestService,
         Action onSettingsSaved,
         Action? onDisableHotkeys = null,
         Action? onEnableHotkeys = null)
@@ -216,6 +245,7 @@ public class SettingsViewModel : INotifyPropertyChanged
         _authService = authService;
         _playerService = playerService;
         _updateService = updateService;
+        _songRequestService = songRequestService;
         _onSettingsSaved = onSettingsSaved;
         _onDisableHotkeys = onDisableHotkeys;
         _onEnableHotkeys = onEnableHotkeys;
@@ -224,6 +254,13 @@ public class SettingsViewModel : INotifyPropertyChanged
 
         IsAuthenticated = authService.IsAuthenticated;
         AuthenticationStatus = IsAuthenticated ? "Connected to Spotify" : "Not connected";
+
+        TwitchIsConnected = _songRequestService.IsConnected;
+        TwitchStatusText = TwitchIsConnected ? "Connected" : "Not connected";
+        _songRequestService.StatusChanged += OnTwitchStatusChanged;
+        _songRequestService.RequestProcessed += OnSongRequestProcessed;
+
+        ClearSongRequestLogCommand = new RelayCommand(() => SongRequestLog.Clear());
 
         ConnectSpotifyCommand = new RelayCommand(async () => await ConnectSpotifyAsync());
         DisconnectSpotifyCommand = new RelayCommand(DisconnectSpotify);
@@ -408,6 +445,39 @@ public class SettingsViewModel : INotifyPropertyChanged
             UpdateStatusText = $"You're up to date! ({CurrentVersion})";
             UpdateStatusColor = new SolidColorBrush(Color.FromRgb(33, 150, 243));
         }
+    }
+
+    private void OnTwitchStatusChanged(object? sender, string status)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            TwitchIsConnected = _songRequestService.IsConnected;
+            TwitchStatusText = status;
+        });
+    }
+
+    private void OnSongRequestProcessed(object? sender, SongRequestResult result)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            SongRequestLog.Insert(0, new SongRequestLogEntry
+            {
+                Timestamp = result.Timestamp,
+                Username = result.Username,
+                Query = result.Query,
+                Success = result.Success,
+                Message = result.Message
+            });
+
+            while (SongRequestLog.Count > 50)
+                SongRequestLog.RemoveAt(SongRequestLog.Count - 1);
+        });
+    }
+
+    public void Cleanup()
+    {
+        _songRequestService.StatusChanged -= OnTwitchStatusChanged;
+        _songRequestService.RequestProcessed -= OnSongRequestProcessed;
     }
 
     private void ShowChangelogView()

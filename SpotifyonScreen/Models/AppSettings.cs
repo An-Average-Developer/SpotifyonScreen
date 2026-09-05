@@ -28,6 +28,7 @@ public class AppSettings
     public OverlayAppearance Appearance { get; set; } = new OverlayAppearance();
     public WindowPosition Position { get; set; } = new WindowPosition();
     public HotkeySettings Hotkeys { get; set; } = new HotkeySettings();
+    public TwitchSettings Twitch { get; set; } = new TwitchSettings();
     public bool StartMinimized { get; set; } = false;
     public bool RunAtStartup { get; set; } = true;
     public bool AllowObsCapture { get; set; } = false;

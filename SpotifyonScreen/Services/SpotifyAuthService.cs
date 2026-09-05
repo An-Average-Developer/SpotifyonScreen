@@ -15,7 +15,7 @@ public class SpotifyAuthService : IDisposable
     private const string TokenUrl = "https://accounts.spotify.com/api/token";
     private const string RedirectUri = "http://127.0.0.1:4202";
     private const string ListenerPrefix = "http://127.0.0.1:4202/";
-    private const string Scopes = "user-read-currently-playing user-read-playback-state";
+    private const string Scopes = "user-read-currently-playing user-read-playback-state user-modify-playback-state";
 
     private readonly HttpClient _httpClient = new();
     private readonly string _tokensPath;

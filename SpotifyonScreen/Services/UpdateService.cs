@@ -106,6 +106,150 @@ namespace SpotifyOnScreen.Services
             return updateInfo;
         }
 
+        // Manual fallback for when the automatic update path fails or misreports the
+        // installed version as current — always returns the download info for the
+        // latest published release, regardless of the local version comparison.
+        public async Task<UpdateInfo> GetLatestReleaseInfoAsync()
+        {
+            var info = new UpdateInfo { LatestVersion = AppVersion.CURRENT_VERSION };
+
+            try
+            {
+                var versionUrl = $"https://raw.githubusercontent.com/{AppVersion.GITHUB_OWNER}/{AppVersion.GITHUB_REPO}/{AppVersion.GITHUB_BRANCH}/version.txt";
+                var latestVersion = (await _httpClient.GetStringAsync(versionUrl))
+                    .Replace("\r", "").Replace("\n", "").Replace("\t", "").Trim();
+
+                if (string.IsNullOrWhiteSpace(latestVersion))
+                    throw new Exception("version.txt is empty or invalid");
+
+                info.LatestVersion = latestVersion;
+                info.IsUpdateAvailable = true;
+
+                try
+                {
+                    var changelogUrl = $"https://raw.githubusercontent.com/{AppVersion.GITHUB_OWNER}/{AppVersion.GITHUB_REPO}/{AppVersion.GITHUB_BRANCH}/changelog.txt";
+                    info.Changelog = (await _httpClient.GetStringAsync(changelogUrl)).Trim();
+                }
+                catch
+                {
+                }
+
+                info.FileName = "SpotifyOnScreen.exe";
+                info.DownloadUrl = $"https://github.com/{AppVersion.GITHUB_OWNER}/{AppVersion.GITHUB_REPO}/releases/latest/download/{info.FileName}";
+                info.ReleaseUrl = $"https://github.com/{AppVersion.GITHUB_OWNER}/{AppVersion.GITHUB_REPO}/releases/latest";
+
+                try
+                {
+                    using var headRequest = new HttpRequestMessage(HttpMethod.Head, info.DownloadUrl);
+                    using var headResponse = await _httpClient.SendAsync(headRequest);
+
+                    if (headResponse.IsSuccessStatusCode && headResponse.Content.Headers.ContentLength.HasValue)
+                        info.FileSize = headResponse.Content.Headers.ContentLength.Value;
+                }
+                catch
+                {
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UpdateService] Manual release lookup failed: {ex.Message}");
+            }
+
+            return info;
+        }
+
+        // Used only by the manual-update fallback window: downloads the SpotifyOnScreen.exe
+        // straight from the GitHub release into the folder the app is currently running
+        // from, then closes the app, replaces the old exe with the new one, and relaunches.
+        public async Task<bool> DownloadAndInstallLauncherExeAsync(IProgress<int>? progress = null)
+        {
+            var downloadUrl = $"https://github.com/{AppVersion.GITHUB_OWNER}/{AppVersion.GITHUB_REPO}/releases/latest/download/SpotifyOnScreen.exe";
+
+            string? tempDir = null;
+            string? stagingPath = null;
+
+            try
+            {
+                var currentExePath = GetCurrentExecutablePath();
+                var currentDir = Path.GetDirectoryName(currentExePath) ?? AppContext.BaseDirectory;
+                var exeName = Path.GetFileName(currentExePath);
+                if (string.IsNullOrEmpty(exeName))
+                    exeName = "SpotifyOnScreen.exe";
+
+                stagingPath = Path.Combine(currentDir, exeName + ".update");
+
+                using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead))
+                {
+                    response.EnsureSuccessStatusCode();
+                    var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                    var buffer = new byte[8192];
+                    var bytesRead = 0L;
+
+                    using var contentStream = await response.Content.ReadAsStreamAsync();
+                    using var fileStream = new FileStream(stagingPath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                    int read;
+                    while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        await fileStream.WriteAsync(buffer, 0, read);
+                        bytesRead += read;
+
+                        if (totalBytes > 0)
+                            progress?.Report((int)((bytesRead * 100) / totalBytes));
+                    }
+                }
+
+                tempDir = Path.Combine(Path.GetTempPath(), "SpotifyOnScreen_Update");
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, true);
+                Directory.CreateDirectory(tempDir);
+
+                var batchPath = Path.Combine(tempDir, "update.bat");
+                var batchContent = $@"@echo off
+chcp 65001 >nul
+timeout /t 2 /nobreak >nul
+set RETRIES=10
+:retry
+move /y ""{stagingPath}"" ""{currentExePath}"" >nul 2>&1
+if exist ""{stagingPath}"" (
+    set /a RETRIES-=1
+    if %RETRIES% GTR 0 (
+        timeout /t 1 /nobreak >nul
+        goto retry
+    )
+)
+start """" ""{currentExePath}""
+rd /s /q ""{tempDir}""
+exit";
+
+                await File.WriteAllTextAsync(batchPath, batchContent);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"{batchPath}\"",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+
+                await Task.Delay(1000);
+                Environment.Exit(0);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[UpdateService] Manual exe install failed: {ex.Message}");
+                try
+                {
+                    if (stagingPath != null && File.Exists(stagingPath)) File.Delete(stagingPath);
+                    if (tempDir != null && Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+                }
+                catch
+                {
+                }
+                return false;
+            }
+        }
+
         public async Task<bool> DownloadAndInstallUpdateAsync(UpdateInfo updateInfo, IProgress<int>? progress = null)
         {
             if (string.IsNullOrWhiteSpace(updateInfo.DownloadUrl))
@@ -355,6 +499,14 @@ exit
             {
                 Debug.WriteLine($"Failed to open GitHub page: {ex.Message}");
             }
+        }
+
+        public static string FormatFileSize(long bytes)
+        {
+            if (bytes <= 0) return "—";
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+            return $"{bytes / (1024.0 * 1024):F2} MB";
         }
 
         public void Dispose()

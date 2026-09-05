@@ -1,2 +1,4 @@
-1.1.1
-- Added OBS Support
+1.2.0
+- Added Twitch song requests and lets viewers queue a song on Spotify with a chat command
+- Added a per-user cooldown and a recent-requests log for Twitch song requests
+- Added a manual update system

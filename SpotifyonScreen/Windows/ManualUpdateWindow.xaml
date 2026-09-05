@@ -1,0 +1,133 @@
+<Window x:Class="SpotifyOnScreen.Windows.ManualUpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manual Update"
+        Height="360"
+        Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#1E1E2E">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="SpotifyGreen" Color="#1DB954"/>
+        <SolidColorBrush x:Key="SpotifyGreenHover" Color="#1ED760"/>
+        <SolidColorBrush x:Key="SurfaceColor" Color="#2A2A3A"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#3E3E4E"/>
+        <SolidColorBrush x:Key="TextPrimary" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="TextSecondary" Color="#A0A0B0"/>
+
+        <Style x:Key="ModernButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource SpotifyGreen}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource SpotifyGreenHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource ModernButton}">
+            <Setter Property="Background" Value="{StaticResource SurfaceColor}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderBrush="{StaticResource BorderColor}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#35354A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="#1A1A26" Padding="24,18">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse Width="14" Height="14" Fill="{StaticResource SpotifyGreen}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="MANUAL UPDATE" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimary}"/>
+                    <TextBlock Text="Use this if the app isn't detecting or installing updates on its own."
+                               FontSize="12" Foreground="{StaticResource TextSecondary}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Content -->
+        <StackPanel Grid.Row="1" Margin="24,20">
+            <Border Background="{StaticResource SurfaceColor}" BorderBrush="{StaticResource BorderColor}"
+                    BorderThickness="1" CornerRadius="8" Padding="16,14">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="StatusIcon" Width="10" Height="10" Fill="{StaticResource SpotifyGreen}"
+                             Margin="0,4,12,0" VerticalAlignment="Top"/>
+                    <StackPanel>
+                        <TextBlock x:Name="StatusTitleText" Text="Checking for the latest release..."
+                                   FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextPrimary}" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="StatusMessageText" FontSize="12" Foreground="{StaticResource TextSecondary}"
+                                   Margin="0,4,0,0" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <StackPanel x:Name="DownloadProgressPanel" Visibility="Collapsed" Margin="2,16,0,0">
+                <TextBlock x:Name="DownloadProgressText" Text="Downloading update..."
+                           FontSize="12" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                <ProgressBar x:Name="DownloadProgressBar" Value="0" Maximum="100" Height="8"
+                             Foreground="{StaticResource SpotifyGreen}"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Padding="24,0,24,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="1" x:Name="CloseBtn" Content="Close" Style="{StaticResource SecondaryButton}"
+                        Click="CloseBtn_Click" Margin="0,0,10,0"/>
+                <Button Grid.Column="2" x:Name="BrowserBtn" Content="Open in Browser" Style="{StaticResource SecondaryButton}"
+                        Click="BrowserBtn_Click" Margin="0,0,10,0"/>
+                <Button Grid.Column="3" x:Name="DownloadBtn" Content="Download &amp; Replace" Style="{StaticResource ModernButton}"
+                        IsEnabled="False" Click="DownloadBtn_Click"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

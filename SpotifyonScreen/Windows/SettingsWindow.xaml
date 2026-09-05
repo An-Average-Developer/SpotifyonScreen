@@ -853,6 +853,214 @@
                     </StackPanel>
                 </TabItem>
 
+                <!-- Twitch Tab -->
+                <TabItem Header="Twitch">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,20,0,0">
+                            <TextBlock Text="Twitch song requests"
+                                     FontSize="16"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource TextSecondary}"
+                                     Margin="0,0,0,16"/>
+
+                            <Border Background="{StaticResource SurfaceColor}"
+                                  CornerRadius="8"
+                                  Padding="12"
+                                  BorderBrush="{StaticResource BorderColor}"
+                                  BorderThickness="1"
+                                  Margin="0,0,0,24">
+                                <TextBlock TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}">
+                                    Connects to your Twitch channel's chat (read-only, no login needed) and lets
+                                    viewers queue a song on Spotify with a chat command, e.g.
+                                    <Run Text="!sr Never Gonna Give You Up" FontFamily="Consolas" Foreground="{StaticResource TextPrimary}"/>
+                                    or a Spotify track link. Requires an active Spotify playback session (Premium).
+                                </TextBlock>
+                            </Border>
+
+                            <CheckBox Content="Enable Twitch song requests"
+                                    IsChecked="{Binding Settings.Twitch.Enabled}"
+                                    Style="{StaticResource ModernCheckBox}"
+                                    Margin="0,0,0,20"/>
+
+                            <TextBlock Text="Twitch channel (name or link):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                            <TextBox Text="{Binding Settings.Twitch.Channel, UpdateSourceTrigger=PropertyChanged}"
+                                   Style="{StaticResource ModernTextBox}"
+                                   Margin="0,0,0,20"/>
+
+                            <TextBlock Text="Command:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                            <TextBox Text="{Binding Settings.Twitch.CommandName, UpdateSourceTrigger=PropertyChanged}"
+                                   Style="{StaticResource ModernTextBox}"
+                                   Margin="0,0,0,20"/>
+
+                            <TextBlock Text="Per-user cooldown (seconds):" FontWeight="Medium" Foreground="{StaticResource TextPrimary}" Margin="0,0,0,8"/>
+                            <TextBox Text="{Binding Settings.Twitch.CooldownSeconds, UpdateSourceTrigger=PropertyChanged}"
+                                   Style="{StaticResource ModernTextBox}"
+                                   Margin="0,0,0,24"/>
+
+                            <!-- Chat connection status -->
+                            <Border Background="{StaticResource SurfaceColor}"
+                                  CornerRadius="8"
+                                  Padding="16"
+                                  BorderBrush="{StaticResource BorderColor}"
+                                  BorderThickness="1"
+                                  Margin="0,0,0,24">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Margin="0,0,12,0">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="#F87171"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding TwitchIsConnected}" Value="True">
+                                                        <Setter Property="Fill" Value="#1DB954"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding TwitchStatusText}"
+                                             FontSize="14"
+                                             FontWeight="Medium"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Button Content="Save Twitch Settings"
+                                  Command="{Binding SaveCommand}"
+                                  Style="{StaticResource ModernButton}"
+                                  HorizontalAlignment="Left"
+                                  Padding="24,12"
+                                  Margin="0,0,0,24"/>
+
+                            <!-- Spotify connection for song requests (independent of Local/Web API display mode) -->
+                            <TextBlock Text="Spotify connection"
+                                     FontSize="16"
+                                     FontWeight="SemiBold"
+                                     Foreground="{StaticResource TextSecondary}"
+                                     Margin="0,0,0,16"/>
+
+                            <Border Background="#3E3E2E"
+                                  CornerRadius="8"
+                                  Padding="12"
+                                  BorderBrush="#5E5E3E"
+                                  BorderThickness="1"
+                                  Margin="0,0,0,16">
+                                <TextBlock Text="Song requests need Spotify connected with queue permission, even in Local display mode. If you connected before this feature existed, click Connect again to grant it."
+                                         FontStyle="Italic"
+                                         Foreground="{StaticResource TextSecondary}"
+                                         TextWrapping="Wrap"/>
+                            </Border>
+
+                            <Border Background="{StaticResource SurfaceColor}"
+                                  CornerRadius="8"
+                                  Padding="16"
+                                  BorderBrush="{StaticResource BorderColor}"
+                                  BorderThickness="1"
+                                  Margin="0,0,0,20">
+                                <StackPanel Orientation="Horizontal">
+                                    <Ellipse Width="10" Height="10" Margin="0,0,12,0">
+                                        <Ellipse.Style>
+                                            <Style TargetType="Ellipse">
+                                                <Setter Property="Fill" Value="#F87171"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAuthenticated}" Value="True">
+                                                        <Setter Property="Fill" Value="#1DB954"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Ellipse.Style>
+                                    </Ellipse>
+                                    <TextBlock Text="{Binding AuthenticationStatus}"
+                                             FontSize="14"
+                                             FontWeight="Medium"
+                                             Foreground="{StaticResource TextPrimary}"
+                                             VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Client ID:" FontWeight="Medium" Foreground="{StaticResource TextPrimary}"/>
+                                <Button Grid.Column="1"
+                                      Content="How to get a Client ID"
+                                      Click="TwitchClientIdHelp_Click"
+                                      Style="{StaticResource SecondaryButton}"
+                                      Padding="10,4"
+                                      Margin="12,0,0,0"/>
+                            </Grid>
+                            <TextBox Text="{Binding Settings.Spotify.ClientId, UpdateSourceTrigger=PropertyChanged}"
+                                   Style="{StaticResource ModernTextBox}"
+                                   Margin="0,0,0,20"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,28">
+                                <Button Content="Connect to Spotify"
+                                      Command="{Binding ConnectSpotifyCommand}"
+                                      Style="{StaticResource ModernButton}"
+                                      Margin="0,0,12,0"/>
+                                <Button Content="Disconnect"
+                                      Command="{Binding DisconnectSpotifyCommand}"
+                                      Style="{StaticResource DangerButton}"
+                                      Visibility="{Binding IsAuthenticated, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+
+                            <!-- Recent song requests -->
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                         Text="Recent requests"
+                                         FontSize="16"
+                                         FontWeight="SemiBold"
+                                         Foreground="{StaticResource TextSecondary}"
+                                         VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                      Content="Clear"
+                                      Command="{Binding ClearSongRequestLogCommand}"
+                                      Style="{StaticResource SecondaryButton}"
+                                      Padding="12,6"/>
+                            </Grid>
+
+                            <Border Background="{StaticResource SurfaceColor}"
+                                  CornerRadius="8"
+                                  Padding="12"
+                                  BorderBrush="{StaticResource BorderColor}"
+                                  BorderThickness="1"
+                                  MinHeight="60"
+                                  MaxHeight="220">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding SongRequestLog}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding DisplayText}"
+                                                         TextWrapping="Wrap"
+                                                         FontFamily="Consolas"
+                                                         FontSize="12"
+                                                         Margin="0,0,0,6">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Foreground" Value="#F87171"/>
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Success}" Value="True">
+                                                                    <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
                 <!-- Updates Tab -->
                 <TabItem Header="Updates">
                     <Grid>
@@ -924,6 +1132,26 @@
                                           Visibility="{Binding IsUpdateAvailable, Converter={StaticResource BoolToVis}}"/>
 
                                 </WrapPanel>
+
+                                <Button Content="App not updating? Click here to update manually"
+                                      Click="ManualUpdateLink_Click"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      HorizontalAlignment="Left"
+                                      Padding="0"
+                                      Margin="0,4,0,0"
+                                      Cursor="Hand"
+                                      Foreground="{StaticResource TextSecondary}"
+                                      FontSize="12">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <TextBlock Text="{TemplateBinding Content}"
+                                                     Foreground="{TemplateBinding Foreground}"
+                                                     FontSize="{TemplateBinding FontSize}"
+                                                     TextDecorations="Underline"/>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
                             </StackPanel>
                         </ScrollViewer>
 

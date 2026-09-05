@@ -16,6 +16,7 @@ public partial class App : Application
     private SpotifyAuthService? _authService;
     private IPlayerService? _playerService;
     private UpdateService? _updateService;
+    private SongRequestService? _songRequestService;
     private GlobalHotkeyManager? _hotkeyManager;
     private TrayIconManager? _trayManager;
     private OverlayWindow? _overlayWindow;
@@ -39,6 +40,10 @@ public partial class App : Application
                 _playerService = new SpotifyPlayerService(_authService);
             else
                 _playerService = new LocalPlayerService();
+
+            _songRequestService = new SongRequestService(_authService);
+            if (settings.Twitch.Enabled && !string.IsNullOrWhiteSpace(settings.Twitch.Channel))
+                _songRequestService.Start(settings.Twitch);
 
             _overlayViewModel = new OverlayViewModel(_configService, _playerService);
             _overlayWindow = new OverlayWindow(_overlayViewModel);
@@ -92,6 +97,8 @@ public partial class App : Application
         {
             _playerService?.Stop();
             _playerService?.Dispose();
+            _songRequestService?.Stop();
+            _songRequestService?.Dispose();
             _authService?.Dispose();
             _updateService?.Dispose();
             _hotkeyManager?.UnregisterHotkeys();
@@ -130,6 +137,7 @@ public partial class App : Application
                     _authService,
                     _playerService,
                     _updateService!,
+                    _songRequestService!,
                     OnSettingsSaved,
                     DisableHotkeys,
                     EnableHotkeys);
@@ -171,6 +179,10 @@ public partial class App : Application
                 _playerService?.Stop();
                 _playerService?.Start(settings.Spotify.PollingIntervalMs);
             }
+
+            _songRequestService?.Stop();
+            if (settings.Twitch.Enabled && !string.IsNullOrWhiteSpace(settings.Twitch.Channel))
+                _songRequestService?.Start(settings.Twitch);
         }
         catch (Exception ex)
         {
